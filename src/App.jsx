@@ -1,17 +1,13 @@
-import React, { useState, useEffect } from 'react';
-import axios from 'axios';
-import './App.css'
+import React from 'react';
+import { Route, Routes } from 'react-router-dom';
+import Home from './components/Home/Home';
 
 function App() {
-
-  const [authUrl, setAuthUrl] = useState('');
-  const [token, setToken] = useState(null);
-  const [emails, setEmails] = useState([]);
-
   return (
-    <div className='App'>
-    </div>
-  )
+    <Routes>
+      <Route path="/" element={<Home />} />
+    </Routes>
+  );
 }
 
-export default App
+export default App;
