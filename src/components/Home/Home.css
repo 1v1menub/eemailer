@@ -1,0 +1,136 @@
+.home-cont {
+    flex: 1;
+    min-height: calc(100vh - 70px);
+    display: flex;
+    flex-direction: column;
+}
+
+.home-nologin-title {
+    margin: 15% auto 20px;
+}
+
+.home-email-img {
+    margin: 0px auto;
+    width: 70%;
+    max-width: 200px;
+}
+
+.tabs {
+    flex: 1;
+    max-width: 300px;
+    display: flex;
+    flex-direction: column ;
+    flex-wrap: wrap;
+    background-color: #f1f1f1;
+    overflow-y: auto;
+    border-right: 1px solid rgb(50, 46, 46);
+
+}
+
+.tabs button {
+    padding: 0.5rem 1rem;
+    border: none;
+    background-color: #f1f1f1;
+    cursor: pointer;
+    max-width: 300px;
+}
+
+.tabs button.active-tab {
+    background-color: rgb(50, 46, 46);
+    color: white;
+}
+
+.emails {
+    padding: 15px;
+    width: calc(100% - 300px);
+    overflow-y: auto;
+}
+
+.email-item {
+    border-bottom: 1px solid #ddd;
+    padding: 1rem 0;
+}
+
+.email-item h3 {
+    margin: 0;
+    font-size: 1.2rem;
+}
+
+.email-item p {
+    margin: 0.5rem 0;
+}
+  
+.logged-home-cont {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.horizontal-divide {
+    flex: 1;
+    display: flex;
+}
+
+.send-email-button {
+    padding: 10px;
+    background-color: rgb(94, 93, 93);
+    color: white;
+    cursor: pointer;
+    text-align: center;
+    border: 1px solid rgb(50, 46, 46);
+    border-right: none;
+    font-weight: bold;
+}
+
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.modal-content {
+    display: flex;
+    flex-direction: column;
+    background: white;
+    padding: 20px;
+    border-radius: 5px;
+    position: relative;
+    max-width: 700px;
+    width: 80%;
+    gap: 20px;
+}
+
+.modal-content .close {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    font-size: 20px;
+    cursor: pointer;
+}
+
+.send-email-form {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.form-input {
+    display: flex;
+    flex-direction: column;
+}
+
+.form-input-i {
+    font-size: 1rem;
+    padding: 5px;
+}
+
+.submit-email-button {
+    font-size: 1rem;
+    padding: 5px;
+}

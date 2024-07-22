@@ -1,125 +1,195 @@
 import { useState, useEffect } from 'react';
-import { googleLogout, useGoogleLogin, hasGrantedAllScopesGoogle } from '@react-oauth/google';
 import axios from 'axios';
-import io from 'socket.io-client';
+import { JSEncrypt } from 'jsencrypt';
+import "./Home.css";
+import email from "../../assets/email.svg";
 
-const socket = io('http://localhost:3000');
+function encryptMessage(publicKey, message) {
+  const encrypt = new JSEncrypt();
+  console.log(publicKey)
+  encrypt.setPublicKey(publicKey);
+  const encryptedMessage = encrypt.encrypt(message);
+  if (!encryptedMessage) {
+    throw new Error('Encryption failed');
+  }
+  return encryptedMessage;
+}
 
-function Home() {
-  const [ user, setUser ] = useState(null);
-  const [ profile, setProfile ] = useState(null);
-  const [ emails, setEmails ] = useState(null);
+function decryptMessage(encryptedMessageBase64) {
+  try {
+    const privateKey = atob(localStorage.getItem('privateKey'));
+    console.log(privateKey)
+    if (!privateKey) {
+      throw new Error('Private key not found in localStorage');
+    }
+  
+    const decrypt = new JSEncrypt();
+    decrypt.setPrivateKey(privateKey);
+    const decryptedMessage = decrypt.decrypt(encryptedMessageBase64);
+    if (!decryptedMessage) {
+      console.log('Decryption failed');
+      return encryptedMessageBase64;
+    } 
+    return decryptedMessage;
+  }
+  catch {
+    return encryptedMessageBase64
+  }
+}
 
-  const login = useGoogleLogin({
-      onSuccess: (res) => {
-        setUser(res);
-      },
-      onError: (error) => console.log('Login Failed:', error),
-      scope: 'email profile https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email openid https://www.googleapis.com/auth/gmail.modify',
-  });
-
-  const fetchProfile = async (accessToken) => {
-    try {
-        const response = await axios.get('https://www.googleapis.com/oauth2/v1/userinfo?alt=json', {
-            headers: {
-                Authorization: `Bearer ${accessToken}`,
-            },
-        });
-        setProfile(response.data);
-      } 
-      catch (error) {
-          console.error('Error fetching profile:', error);
-      }
-  };
-
-  const fetchEmails = async (accessToken) => {
-    try {
-        const response = await axios.get('https://www.googleapis.com/gmail/v1/users/me/messages', {
-            headers: {
-                Authorization: `Bearer ${accessToken}`,
-            },
-            params: {
-                maxResults: 10,
-            },
-        });
-
-        const messagePromises = response.data.messages.map(async (message) => {
-            const messageResponse = await axios.get(`https://www.googleapis.com/gmail/v1/users/me/messages/${message.id}`, {
-                headers: {
-                    Authorization: `Bearer ${accessToken}`,
-                },
-            });
-            return messageResponse.data;
-        });
-
-        const messages = await Promise.all(messagePromises);
-        setEmails(messages);
-      } 
-      catch (error) {
-          console.error('Error fetching emails:', error);
-      }
-  };
+function Home({ profile, emails, sendEmail }) {
+  const [selectedSender, setSelectedSender] = useState(null);
+  const [showModal, setShowModal] = useState(false);
+  const [emailAddresses, setEmailAddresses] = useState([]);
+  const [recipient, setRecipient] = useState('');
+  const [recipientPublicKey, setRecipientPublicKey] = useState('');
+  const [title, setTitle] = useState('');
+  const [body, setBody] = useState('');
 
   useEffect(() => {
-    if (user) {
-      fetchProfile(user.access_token)
-      fetchEmails(user.access_token)
-    }
-  }, [user]);
+    const fetchEmailAddresses = async () => {
+      try {
+        const response = await axios.get('http://localhost:3000/api/addresses');
+        setEmailAddresses(response.data);
+      } catch (error) {
+        console.error('Error fetching email addresses:', error);
+      }
+    };
+
+    fetchEmailAddresses();
+  }, [showModal]);
 
   useEffect(() => {
-    if (profile) {
-      socket.emit('register', { user_email: profile.email });
-
-      socket.on('account_found', (data) => {
-        console.log('Account found:', data);
-      });
-
-      socket.on('account_not_found', (data) => {
-        console.log('Account not found:', data);
-        const hardcodedPublicKey = 'hardcoded_public_key';
-        socket.emit('create_account', { user_email: profile.email, public_key: hardcodedPublicKey });
-      });
-
-      socket.on('account_created', (data) => {
-        console.log('Account created:', data);
-      });
-
-      socket.on('error', (data) => {
-        console.error('Error:', data);
-      });
-
-      return () => {
-        socket.off('account_found');
-        socket.off('account_not_found');
-        socket.off('account_created');
-        socket.off('error');
-      };
+    const selectedRecipient = emailAddresses.find((address) => address.user_email === recipient);
+    if (selectedRecipient) {
+      setRecipientPublicKey(selectedRecipient.public_key);
     }
-  }, [profile, socket]);
+  }, [recipient, emailAddresses]);
 
-
-  const logOut = () => {
-      googleLogout();
-      setUser(null) 
-      setProfile(null);
+  const handleSendEmail = async (e) => {
+    e.preventDefault();
+    if (!recipientPublicKey) {
+      console.error('Recipient public key not found');
+      return;
+    }
+    const encryptedBody = encryptMessage(recipientPublicKey, body);
+    sendEmail(recipient, title, encryptedBody);
+    setRecipient('');
+    setTitle('');
+    setBody('');
+    setShowModal(false);
   };
+
+  const senders = emails
+    ? Array.from(new Set(emails.map(email => email.payload.headers.find(header => header.name === 'From')?.value)))
+      .map(sender => ({
+        email: sender,
+        lastEmail: emails.filter(email => email.payload.headers.find(header => header.name === 'From')?.value === sender)
+          .map(email => ({
+            date: new Date(parseInt(email.internalDate)),
+            email: email
+          }))
+          .sort((a, b) => b.date - a.date)[0].date
+      }))
+      .sort((a, b) => b.lastEmail - a.lastEmail)
+    : [];
+
+  const filteredEmails = selectedSender
+    ? emails.filter(email => email.payload.headers.find(header => header.name === 'From')?.value === selectedSender)
+    : [];
 
   return (
-      <div>
-          <h2>React Google Login</h2>
-          {profile ? (
-              <div>
-                  <img src={profile.picture} alt="user image" />
-                  <h3>User Logged in</h3>
-                  <p>Name: {profile.name}</p>
-                  <p>Email Address: {profile.email}</p>
-                  <button onClick={logOut}>Log out</button>
+    <div className='home-cont'>
+      {!profile ? (
+        <>
+          <h1 className='home-nologin-title'>This is EEMAILER, the best app for encrypted email messaging.</h1>
+          <img className='home-email-img' src={email} alt="Email Illustration"/>
+        </>
+      ) : (
+        <div className='logged-home-cont'>
+          <div className='horizontal-divide'>
+            <div className="tabs">
+              <div className='send-email-button' onClick={() => setShowModal(true)}>SEND EMAIL</div>
+              {senders.map((sender, index) => (
+                <button
+                  key={index}
+                  onClick={() => setSelectedSender(sender.email)}
+                  className={selectedSender === sender.email ? 'active-tab' : ''}
+                >
+                  {sender.email}
+                </button>
+              ))}
+            </div>
+            <div className="emails">
+              {filteredEmails.length > 0 ? (
+                filteredEmails.map((email) => {
+                  const emailDate = new Date(parseInt(email.internalDate));
+                  return (
+                    <div key={email.id} className="email-item">
+                      <h3>{email.payload.headers.find(header => header.name === 'Subject')?.value || 'No Subject'}</h3>
+                      <p><strong>From:</strong> {email.payload.headers.find(header => header.name === 'From')?.value}</p>
+                      <p><strong>Date:</strong> {emailDate.toLocaleString()}</p>
+                      <p><strong>Body:</strong> {decryptMessage(email.snippet)}</p>
+                    </div>
+                  );
+                })
+              ) : (
+                <p>No emails</p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showModal && (
+        <div className="modal">
+          <div className="modal-content">
+            <span className="close" onClick={() => setShowModal(false)}>&times;</span>
+            <h2>Send an Email</h2>
+            <form className='send-email-form' onSubmit={handleSendEmail}>
+              <div className='form-input'>
+                <label>To:</label>
+                <select
+                  className='form-input-i'
+                  value={recipient}
+                  onChange={(e) => setRecipient(e.target.value)}
+                  required
+                >
+                  <option value="" disabled>Select recipient</option>
+                  {emailAddresses.map((address, index) => (
+                    <option key={index} value={address.user_email}>{address.user_email}</option>
+                  ))}
+                </select>
               </div>
-          ) : (
-              <button onClick={login}>Sign in with Google 🚀 </button>
-          )}
-      </div>
+              <div className='form-input'>
+                <label>Subject:</label>
+                <input
+                  className='form-input-i'
+                  placeholder='Enter email subject'
+                  type="text"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  required
+                />
+              </div>
+              <div className='form-input'>
+                <label>Body:</label>
+                <textarea
+                  style={{height: "100px"}}
+                  className='form-input-i'
+                  placeholder='Enter email body'
+                  value={body}
+                  onChange={(e) => setBody(e.target.value)}
+                  required
+                />
+              </div>
+              <button className='submit-email-button' type="submit">Send</button>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
+
 export default Home;

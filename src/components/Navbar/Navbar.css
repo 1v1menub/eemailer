@@ -1,0 +1,31 @@
+.nav-cont {
+    flex: 1;
+    background-color: rgb(50, 46, 46);
+    height: 70px;
+    padding: 5px 20px;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    color: white;
+}
+
+.nav-title {
+    font-size: 2rem;
+    margin-right: auto;
+}
+
+.login-button {
+    padding: 10px;
+    font-size: 1rem;
+}
+
+.user-info-cont {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 20px;
+}
+
+.user-img {
+    height: 50px;
+}
